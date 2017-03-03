@@ -6,6 +6,10 @@ let comments = [
     {id: 5, author: "Tim Riker", text: "So what we're learning is to keep our componets dumb?"}
 ];
 
+const { createClass, PropTypes } = React;
+const { createStore } = Redux;
+const { Provider } = ReactRedux;
+
 const Comment = (props) => (
     <div className="comment">
         <h2 className="commentAuthor">
@@ -39,7 +43,6 @@ const CommentForm = (props) => (
                value={ props.author }
                onChange={ (e) =>
                    props.onAuthorChange(e.target.value) }
-
         />
         <input type="text"
                name="text"
@@ -52,7 +55,6 @@ const CommentForm = (props) => (
     </form>
 );
 
-const { createClass, PropTypes } = React;
 const CommentBox = createClass({
     contextTypes: {
         store: PropTypes.object
@@ -116,40 +118,29 @@ const commentsReducer = (state={
 }, action) => {
     switch (action.type) {
         case actions.ADD_COMMENT:
-        return {
-            ...state,
-            items: [...state.items, {id: Math.random(), ...action.comment}]
-        };
+        return { ...state,
+            items: [...state.items, {id: Math.random(), ...action.comment}] };
 
         case actions.AUTHOR_CHANGE:
-        return {
-            ...state,
-            author: action.author
-        };
+        return { ...state, author: action.author };
 
         case actions.TEXT_CHANGE:
-        return {
-            ...state,
-            text: action.text
-        };
+        return { ...state, text: action.text };
 
         default:
         return state;
-
     }
 };
 
-const { createStore } = Redux;
 const store = createStore(commentsReducer);
 const { getState, dispatch } = store;
 comments.map(comment => dispatch( addComment(comment) ));
 console.log(getState());
 
-
-const { Provider } = ReactRedux;
 ReactDOM.render(
     <Provider store={ store }>
         <CommentBox />
     </Provider>,
-    document.querySelector('#content')
+//    document.querySelector('#content')
+    document.getElementById('content')
 );
