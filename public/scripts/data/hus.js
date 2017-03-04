@@ -1,7 +1,7 @@
 'use strict'
 
 /**
- * TODO - import into pouch/couch 
+ * TODO - import into pouch/couch
  */
 const empiricalData = () => ({
   // indexes: id OR title
@@ -18,12 +18,12 @@ const empiricalData = () => ({
        pages:[{page:1, lines:[{line:1, oe:"hwaet", en:"so"}]}]}
   ],
   sourceWords: [
-    {id: 1, sourceId:2, oe:"hwaet", en:"so"},
-    {id: 2, sourceId:2, oe:"we", en:"the"},
-    {id: 3, sourceId:2, oe:"gardena", en:"spear-danes"},
-    {id: 4, sourceId:2, oe:"geardagum", en:"bygone-years"},
-    {id: 5, sourceId:1, oe:"thing", en:"legislative issue"},
-    {id: 6, sourceId:1, oe:"leg", en:"law"}
+    {id: 1, sourceId:2, lang: "OE", word:"hwaet", en:"so"},
+    {id: 2, sourceId:2, lang: "OE", word:"we", en:"the"},
+    {id: 3, sourceId:2, lang: "OE", word:"gardena", en:"spear-danes"},
+    {id: 4, sourceId:2, lang: "OE", word:"geardagum", en:"bygone-years"},
+    {id: 5, sourceId:1, lang: "OE", word:"thing", en:"legislative issue"},
+    {id: 6, sourceId:1, lang: "OE", word:"leg", en:"law"}
   ],
   sourceWordComments:  [
       {id: 1, wordId: 1, author: "Cory Brown", text: "My 2 scents"},

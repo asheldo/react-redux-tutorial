@@ -43,6 +43,94 @@ const stubData = (store) => {
 
 /** Views */
 
+/** From sources, list */
+const sourceOption = ({id, title, lang}) =>
+ (<option key={ id } value={ id } >{ title }</option>)
+// stackoverflow.com/questions/21733847/react-jsx-selecting-selected-on-selected-select-option
+const SourceSelect = (props, context) => (
+    <div className="sources">Source:&nbsp;
+      <select className="sources"
+        onChange={ (e) => { props.onSourceChange && props.onSourceChange(e.target.value) } }
+        >{ props.sources.map(sourceOption) }</select><a href="#editSource">Add/Edit</a>
+    </div>
+  );
+
+const SourceForm = (props) => (
+    <form className="sourceForm"
+          onSubmit={ (e) => {
+            e.preventDefault();
+            const title = e.target.querySelector("input[name='title']").value
+            const description = e.target.querySelector("input[name='description']").value
+            const lang = e.target.querySelector("input[name='lang']").value
+            props.onSourceSubmit( {title, description, lang} );
+          }} >
+        <input type="text" name="title" placeholder="New source title" />
+        <input type="text" name="description" placeholder="Source description" />
+        <input type="hidden" name="lang" value="OE" />
+        <button>Post</button>
+    </form>
+  )
+
+const sourceWordOption = ({id, word, en}) =>
+  (<option key={ id } value="{ en }" >{ word }</option>)
+const sourceWordOptions = ({source, words}) =>
+    (!words) ? [ sourceWordOption({id: 0, word:"xx", en:"xxx"}) ]
+      : words.filter((word) => word.sourceId == source.id).map(sourceWordOption)
+const SourceWordSelect = (props, context) => (
+    <div className="sourceWords">Word:&nbsp;
+      <select className="sourceWords">{ sourceWordOptions(props) }</select><a href="#editWord">Add/Edit</a>
+    </div>
+);
+
+const SourceWordForm = (props) => (
+    <form className="sourceWordForm"
+          onSubmit={ (e) => {
+            e.preventDefault();
+            const word = e.target.querySelector("input[name='word']").value
+            const en = e.target.querySelector("input[name='en']").value
+            const sourceId = e.target.querySelector("input[name='sourceId']").value
+            const lang = e.target.querySelector("input[name='lang']").value
+            props.onWordSubmit( {word, en, sourceId, lang} );
+          }} >
+        <input type="text" name="word" defaultValue={ props.word.word }
+          placeholder="OE word" />
+        <input type="text" name="en" defaultValue={ props.word.en }
+          placeholder="Translation" />
+        <input type="hidden" name="sourceId" value={ props.word.sourceId } />
+        <input type="hidden" name="lang" value="OE" />
+        <button>Post</button>
+    </form>
+  )
+
+/** From comments, pull out distinct authors to map from */
+const commentorSet = (comments) => new Set(comments.map((c) => c.author))
+const commentorOption = (author, ix) =>
+ (<option key={ ix } value={ author } >{ author }</option>)
+const CommentorSelect = (props, context) => (
+    <div className="commentor">Commentator:&nbsp;
+      <select className="commentor"
+        // unused
+         value={ props.commentor ? props.commentor : "0" }
+         onChange={
+           (e) => { props.onCommentorChange && props.onCommentorChange(e.target.value) }
+         }><option key="0" value=""></option>{
+          Array.from(commentorSet(props.comments), commentorOption)
+      }</select>
+    </div>)
+
+const CommentForm = (props) => (
+    <form className="commentForm"
+          onSubmit={ (e) => {
+            e.preventDefault();
+            const author = e.target.querySelector("input[name='author']").value
+            const text = e.target.querySelector("input[name='text']").value
+            props.onCommentSubmit( {author, text} );
+          }} >
+        <input type="text" name="author" placeholder="Your name" />
+        <input type="text" name="text" placeholder="Say something..." />
+        <button>Post</button>
+    </form>
+  )
 const Comment = (props) => (
     <div className="comment">
         <h4 className="commentAuthor">{ props.author }</h4>
@@ -61,62 +149,8 @@ const CommentList = function (props, context) {
     </div>
   );};
 
-/** From sources, list */
-const sourceOption = ({id, title, lang}) =>
- (<option key={ id } value={ id } >{ title }</option>)
-// stackoverflow.com/questions/21733847/react-jsx-selecting-selected-on-selected-select-option
-const SourceSelect = (props, context) => (
-    <div className="sources">Source:&nbsp;
-      <select className="sources"
-        onChange={ (e) => { props.onSourceChange && props.onSourceChange(e.target.value) } }
-        >{ props.sources.map(sourceOption) }</select>
-    </div>
-  );
-
-const sourceWordOption = ({id, oe, en}) =>
-  (<option key={ id } value="{ en }" >{ oe }</option>)
-const sourceWordOptions = ({source, words}) =>
-    (!words) ? [ sourceWordOption({id: 0, oe:"xx", en:"xxx"}) ]
-      : words.filter((word) => word.sourceId == source.id).map(sourceWordOption)
-const SourceWordSelect = (props, context) => (
-    <div className="sourceWords">Word:&nbsp;
-      <select className="sourceWords">{ sourceWordOptions(props) }</select>
-    </div>
-);
-
-/** From comments, pull out distinct authors to map from */
-const commentorSet = (comments) => new Set(comments.map((c) => c.author))
-const commentorOption = (author, ix) =>
- (<option key={ ix } value={ author } >{ author }</option>)
-const CommentorSelect = (props, context) => (
-    <div className="commentor">Commentator:&nbsp;
-      <select className="commentor"
-        // unused
-         value={ props.commentor ? props.commentor : "0" }
-         onChange={
-           (e) => { props.onCommentorChange && props.onCommentorChange(e.target.value) }
-         }><option key="0" value=""></option>{
-          Array.from(commentorSet(props.comments), commentorOption)
-      }</select>
-    </div>
-);
-
-const CommentForm = (props) => (
-    <form className="commentForm"
-          onSubmit={ (e) => {
-            e.preventDefault();
-            const author = e.target.querySelector("input[name='author']").value
-            const text = e.target.querySelector("input[name='text']").value
-            props.onCommentSubmit( {author, text} );
-          }} >
-        <input type="text" name="author" placeholder="Your name" />
-        <input type="text" name="text" placeholder="Say something..." />
-        <button>Post</button>
-    </form>
-);
-
 /** Main Components */
-const WordSourceBox = createClass({
+const WordCommentatorBox = createClass({
     contextTypes: { store: PropTypes.object }, // STATE type 1 & maybe 2
     /** getChildContext() { return { source: { } } },
      childContextTypes: { // type 3 // source: PropTypes.object },
@@ -127,13 +161,23 @@ const WordSourceBox = createClass({
     // GLOBAL state
     componentWillUnmount() { this.unsubscribe(); },
     getInitialState: function() {
-      const { sources } = this.context.store.getState()
-      return { source: sources.filter((s) => (s.id == 1))[0], commentor: "" }
+      const { sources, words } = this.context.store.getState()
+      return { source: sources[0], commentor: "" }
     },
     // Control state
-    onSourceChange: function(sourceId) {
+    onSourceChange: function(newSource) {
+      window.location.replace(
+        window.location.pathname + window.location.search + '#/'
+      );
       const { sources } = this.context.store.getState()
-      this.setState({ source: sources.filter((s) => (s.id == sourceId))[0] })
+      this.setState({ source: sources.filter((s) => (s.name == newSource.name))[0] })
+    },
+    onWordChange: function(newWord) {
+      window.location.replace(
+        window.location.pathname + window.location.search + '#/'
+      )
+      const { sourceWords } = this.context.store.getState()
+      this.setState({ word: newWord })
     },
     onCommentorChange: function(newState) {
       this.setState( { commentor: newState })
@@ -146,8 +190,35 @@ const WordSourceBox = createClass({
          * commentor is the author list is filtered on
          * equal after a "post"
          */
-        const { source, commentor, newComment, author } = this.state; // Control state, local (type 3)
-        return (
+        const { source, word, commentor, newWord, newSource, newComment, author } = this.state; // Control state, local (type 3)
+
+        switch (this.props.location[0])  {
+          case 'editWord':
+              return (
+                <div className="wordForm">
+                <h1>Word-Hus Edit Word</h1>
+                <SourceWordForm
+                  word={ word ? word : {sourceId: source.id} }
+                  onWordSubmit= { (newWord) => {
+                    dispatch(addWordCmd(newWord))
+                    this.onWordChange(newWord)
+                  }}
+                />
+                </div>)
+          case 'editSource':
+              return (
+                <div className="sourceForm">
+                <h1>Word-Hus Edit Source</h1>
+                <SourceForm source={ source }
+                    onSourceSubmit= { (newSource) => {
+                      dispatch(addSourceCmd(newSource))
+                      this.onSourceChange(newSource)
+                    }}
+                />
+              </div>)
+          default: // return <div><h1>Not Found</h1></div>;
+        // Main, default page
+          return (
             <div className="commentBox">
                 <h1>Word-Hus</h1>
                 <SourceSelect sources={ sources }
@@ -176,23 +247,19 @@ const WordSourceBox = createClass({
                       // TODO Make CommentList manage this...
                       this.onCommentorChange(newComment.author)
                     }}
-
                 />
             </div>
-        );
+          )
+        }
     }
-});
+})
 
 /** Interface to Store */
 const commentsReducer = (state={
     sources:[],
     sourceWords:[],
-    sourceWordComments:[],
-
-    // items:[],
-
-    author:'',
-    text: ''
+    sourceWordComments:[]
+    // items:[],    author:'',    text: ''
 }, action) => {
     switch (action.type) {
         case actions.ADD_SOURCE:
@@ -201,7 +268,6 @@ const commentsReducer = (state={
         case actions.ADD_WORD:
         return { ...state,
             sourceWords: [...state.sourceWords, {id: Math.random(), ...action.word}] };
-
         case actions.ADD_COMMENT:
         return { ...state,
             sourceWordComments: [...state.sourceWordComments, {id: Math.random(), ...action.comment}] };
@@ -217,12 +283,22 @@ const commentsReducer = (state={
     }
 };
 
+// Split location into `/` separated parts, then render `Application` with it
+function handleNewHash() {
+  var location = window.location.hash.replace(/^#\/?|\/$/g, '').split('/');
+  // var application = <Application location={location} />;
+  // ReactDOM.render(application, document.getElementById('react-app'));
+  // React-Redux application
+  ReactDOM.render(
+      <Provider store={ store }>
+          <WordCommentatorBox location={ location } />
+      </Provider>, // document.getElementById('content')
+        document.querySelector('#content'))
+}
+
 // Redux store
 const store = createStore(commentsReducer);
 stubData(store)
-// React-Redux application
-ReactDOM.render(
-    <Provider store={ store }>
-        <WordSourceBox />
-    </Provider>, document.getElementById('content') // document.querySelector('#content')
-);
+// Handle the initial route and browser navigation events
+handleNewHash()
+window.addEventListener('hashchange', handleNewHash, false);
