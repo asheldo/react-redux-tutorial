@@ -4,11 +4,9 @@ const { createClass, PropTypes } = React;
 const { createStore } = Redux;
 const { Provider } = ReactRedux;
 
-/** Model */
-// see data/hus.js
+/** Model -- see data/hus.js */
 
 /** Actions */
-
 const actions = {
                   CHOOSE_SOURCE:  Symbol('CHOOSE_SOURCE'),
                   ADD_SOURCE:     Symbol('ADD_SOURCE'),
@@ -19,17 +17,11 @@ const actions = {
                   AUTHOR_SELECT:  Symbol('AUTHOR_SELECT')
                 };
 
-/* const chooseSourceCmd
-   = (source) => ({ type: actions.CHOOSE_SOURCE, source });
-   const authorSelectCmd = (author) => ({ type: actions.AUTHOR_SELECT, author }) */
 const addSourceCmd = (source) => ({ type: actions.ADD_SOURCE, source });
 const addWordCmd = (word) => ({ type: actions.ADD_WORD, word });
-//
 const addCommentCmd = (comment) => ({ type: actions.ADD_COMMENT, comment });
-// const authorChangeCmd = (author) => ({ type: actions.AUTHOR_CHANGE, author });
 
 /** Load Model after Redux */
-
 const stubData = (store) => {
   /** airbnb says no-iterators...
    *  Why? This enforces our immutable rule. Dealing with pure functions that return values is easier to reason about than side effects.
@@ -45,13 +37,15 @@ const stubData = (store) => {
 
 /** From sources, list */
 const sourceOption = ({id, title, lang}) =>
- (<option key={ id } value={ id } >{ title }</option>)
-// stackoverflow.com/questions/21733847/react-jsx-selecting-selected-on-selected-select-option
+  (<option key={ id } value={ id } >{ title }</option>)
 const SourceSelect = (props, context) => (
     <div className="sources">Source:&nbsp;
       <select className="sources"
-        onChange={ (e) => { props.onSourceChange && props.onSourceChange(e.target.value) } }
-        >{ props.sources.map(sourceOption) }</select><a href="#editSource">Add/Edit</a>
+        value={ props.source ? props.source.id : null }
+        onChange={ (e) => { props.onSourceChange(e.target.value) } } >
+        { props.sources.map(sourceOption) }
+        </select>
+        &nbsp;<a href="#editSource">Add/Edit</a>
     </div>
   );
 
@@ -64,23 +58,29 @@ const SourceForm = (props) => (
             const lang = e.target.querySelector("input[name='lang']").value
             props.onSourceSubmit( {title, description, lang} );
           }} >
-        <input type="text" name="title" placeholder="New source title" />
-        <input type="text" name="description" placeholder="Source description" />
+        <input type="text" name="title" defaultValue={ props.source && props.source.title }
+          placeholder="New source title" />
+        <input type="text" name="description" defaultValue={ props.source && props.source.description }
+          placeholder="Source description" />
         <input type="hidden" name="lang" value="OE" />
         <button>Post</button>
     </form>
   )
 
 const sourceWordOption = ({id, word, en}) =>
-  (<option key={ id } value="{ en }" >{ word }</option>)
+  (<option key={ id } value={ id } >{ word }</option>)
 const sourceWordOptions = ({source, words}) =>
-    (!words) ? [ sourceWordOption({id: 0, word:"xx", en:"xxx"}) ]
+    (!words || !source) ? [] // sourceWordOption({id: 0, word:"xx", en:"xxx"}) ]
       : words.filter((word) => word.sourceId == source.id).map(sourceWordOption)
 const SourceWordSelect = (props, context) => (
     <div className="sourceWords">Word:&nbsp;
-      <select className="sourceWords">{ sourceWordOptions(props) }</select><a href="#editWord">Add/Edit</a>
+      <select className="sourceWords"
+        onChange={ (e) => { props.onWordChange(e.target.value) } } >
+        { sourceWordOptions(props) }
+        </select>
+        &nbsp;<a href="#editWord">Add/Edit</a>
     </div>
-);
+)
 
 const SourceWordForm = (props) => (
     <form className="sourceWordForm"
@@ -161,23 +161,36 @@ const WordCommentatorBox = createClass({
     // GLOBAL state
     componentWillUnmount() { this.unsubscribe(); },
     getInitialState: function() {
-      const { sources, words } = this.context.store.getState()
-      return { source: sources[0], commentor: "" }
+      const { sources, sourceWords } = this.context.store.getState()
+      const source = sources[0]
+      const word = sourceWords.filter((word) => word.sourceId == source.id)[0]
+      return { word: word, source: source, commentor: "" }
     },
     // Control state
-    onSourceChange: function(newSource) {
+    onSourceSave: function(newSource) {
       window.location.replace(
         window.location.pathname + window.location.search + '#/'
-      );
+      )
       const { sources } = this.context.store.getState()
-      this.setState({ source: sources.filter((s) => (s.name == newSource.name))[0] })
+      this.setState({ source: sources.filter((s) => (s.id == newSource.id))[0] })
     },
-    onWordChange: function(newWord) {
+    onSourceChange: function(newSource) {
+      const { sources, sourceWords } = this.context.store.getState()
+      const source = sources.filter((s) => (s.id == newSource))[0]
+      const word = sourceWords.filter((word) => word.sourceId == source.id)[0]
+      this.setState({ source: source, word: word })
+    },
+    onWordSave: function(newWord) {
       window.location.replace(
         window.location.pathname + window.location.search + '#/'
       )
       const { sourceWords } = this.context.store.getState()
       this.setState({ word: newWord })
+    },
+    onWordChange: function(newWord) {
+      const { sourceWords } = this.context.store.getState()
+      console.log("newWord: " + newWord)
+      this.setState({ word: sourceWords.filter((w) => (w.id == newWord))[0] })
     },
     onCommentorChange: function(newState) {
       this.setState( { commentor: newState })
@@ -190,7 +203,8 @@ const WordCommentatorBox = createClass({
          * commentor is the author list is filtered on
          * equal after a "post"
          */
-        const { source, word, commentor, newWord, newSource, newComment, author } = this.state; // Control state, local (type 3)
+        const { source, word, commentor,
+          newWord, newSource, newComment, author } = this.state; // Control state, local (type 3)
 
         switch (this.props.location[0])  {
           case 'editWord':
@@ -201,7 +215,7 @@ const WordCommentatorBox = createClass({
                   word={ word ? word : {sourceId: source.id} }
                   onWordSubmit= { (newWord) => {
                     dispatch(addWordCmd(newWord))
-                    this.onWordChange(newWord)
+                    this.onWordSave(newWord)
                   }}
                 />
                 </div>)
@@ -209,45 +223,36 @@ const WordCommentatorBox = createClass({
               return (
                 <div className="sourceForm">
                 <h1>Word-Hus Edit Source</h1>
-                <SourceForm source={ source }
-                    onSourceSubmit= { (newSource) => {
-                      dispatch(addSourceCmd(newSource))
-                      this.onSourceChange(newSource)
-                    }}
+                <SourceForm
+                  source={ source }
+                  onSourceSubmit= { (newSource) => {
+                    dispatch(addSourceCmd(newSource))
+                    this.onSourceSave(newSource)
+                  }}
                 />
               </div>)
           default: // return <div><h1>Not Found</h1></div>;
         // Main, default page
-          return (
-            <div className="commentBox">
+            return (
+              <div className="commentBox">
                 <h1>Word-Hus</h1>
-                <SourceSelect sources={ sources }
+                <SourceSelect source={ source } sources={ sources }
                   onSourceChange={ this.onSourceChange } />
-                <SourceWordSelect source={ source }
-                  words={ sourceWords } />
-
+                <SourceWordSelect word={ word } source={ source } words={ sourceWords }
+                  onWordChange={ this.onWordChange } />
                 <CommentorSelect comments={ sourceWordComments } commentor={ commentor }
                   onCommentorChange={ this.onCommentorChange }/>
+                <h2>Comments</h2>
                 <CommentList comments={
                      (commentor=="") ? sourceWordComments
-                      : sourceWordComments.filter((comment) => comment.author == commentor)
-                  } />
+                      : sourceWordComments.filter((comment) => comment.author == commentor) } />
                 <CommentForm
                     author={ author }
-                    /*
-                    text={ text }
-                    onAuthorChange={ (a) => dispatch(authorChangeCmd(a)) }
-                    onTextChange={ (t) => dispatch(textChangeCmd(t)) }
-                     */
-                    // ?? NEED TO FIX THIS, LOCAL V. GLOBAL (pull out author,text?)
                     onCommentSubmit= { (newComment) => {
-                      // const newComment = {author, text}
-                      // this.setState({commentor: author}) // local state
                       dispatch(addCommentCmd(newComment))
                       // TODO Make CommentList manage this...
                       this.onCommentorChange(newComment.author)
-                    }}
-                />
+                    }} />
             </div>
           )
         }
