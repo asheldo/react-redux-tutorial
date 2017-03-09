@@ -13,5 +13,9 @@ Code from react-redux tutorial
 There are a few things that could be cleared up in the example.
 
 ### my fork + branches
-#### 
+####
 Adding plain vanilla setState to the Redux store stuff.
+
+## JSX
+
+stackoverflow.com/questions/21733847/react-jsx-selecting-selected-on-selected-select-option
