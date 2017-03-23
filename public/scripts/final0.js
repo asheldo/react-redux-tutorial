@@ -20,6 +20,7 @@ const addSourceRequestCmd = (source) => ({ type: actions.ADD_SOURCE_REQUEST, sou
 const addSourceSuccessCmd = (source) => ({ type: actions.ADD_SOURCE_SUCCESS, source });
 const addWordCmd = (word) => ({ type: actions.ADD_WORD, word });
 const addCommentCmd = (comment) => ({ type: actions.ADD_COMMENT, comment });
+const addSourceCmd = (source) => ({ type: actions.ADD_SOURCE, source });
 
 /** Load Model after Redux */
 const stubData = (store) => {
@@ -312,7 +313,8 @@ const commentsReducer = (state={
     switch (action.type) {
         case actions.ADD_SOURCE_REQUEST:
         return { ...state, sourceLastStatus: 0};
-        case actions.ADD_SOURCE_SUCCESS:
+
+        case actions.ADD_SOURCE: // _SUCCESS:
         return { ...state,
           sourceLastStatus: 201,
             sources: [...state.sources, {id: Math.random(), ...action.source}] };
