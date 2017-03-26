@@ -13,7 +13,10 @@ function scriptSrc(script) {
 
 function transform(srcPromise) {
     return srcPromise.then(function(src) {
-        var code = Babel.transform(src, { presets: ['es2015', 'stage-0', 'react'] }).code
+        var code = Babel.transform(src,
+          { presets: ['es2015', 'stage-0', 'react']
+          // , plugins: ['transform-es2015-modules-amd']
+        }).code
         return code;
     });
 }

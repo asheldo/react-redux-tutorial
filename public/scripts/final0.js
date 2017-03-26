@@ -4,6 +4,28 @@ const { createClass, PropTypes } = React;
 const { createStore, applyMiddleware } = Redux;
 const { Provider } = ReactRedux;
 
+// Pouch
+// import db from "hus/pouchdb";
+const sourcesDB = new PouchDB('sources')
+var remoteCouch = false;
+const dbEntityID = (userLogin, typeSymbol) => userLogin + new Date().toTimeString() //.toISOString()
+// put PouchDB
+function put(db, userLogin, typeSymbol, value, callback) {
+  // TODO sources only??
+  // var todo = { _id: new Date().toISOString(), title: text }
+  const id = dbEntityID(userLogin, typeSymbol) // symbol
+  const entity = { id: id, _id: id, ...value }
+  db.put(entity, function callback(err, result) {
+    if (!err) {
+      console.log(userLogin + ' successfully posted ' + id);
+      return entity
+    } else {
+      console.log(userLogin + ' : ' + err.message)
+      return value // no id
+    }
+  })
+}
+
 /** Model -- see data/hus.js */
 
 /** Actions */
@@ -12,27 +34,72 @@ const actions = {
                   ADD_SOURCE:     Symbol('ADD_SOURCE'),
                   ADD_WORD:       Symbol('ADD_WORD'),
                   ADD_COMMENT:    Symbol('ADD_COMMENT'),
+                  DELETE_SOURCE:  Symbol('DELETE_SOURCE'),
                   // AUTHOR_CHANGE:  Symbol('AUTHOR_CHANGE'),
                   AUTHOR_SELECT:  Symbol('AUTHOR_SELECT')
                 };
 
-const addSourceRequestCmd = (source) => ({ type: actions.ADD_SOURCE_REQUEST, source });
-const addSourceSuccessCmd = (source) => ({ type: actions.ADD_SOURCE_SUCCESS, source });
-const addWordCmd = (word) => ({ type: actions.ADD_WORD, word });
-const addCommentCmd = (comment) => ({ type: actions.ADD_COMMENT, comment });
-const addSourceCmd = (source) => ({ type: actions.ADD_SOURCE, source });
+const addWordCmd = (userLogin, word) => ({ userLogin, type: actions.ADD_WORD, word });
+const addCommentCmd = (userLogin, comment) => ({ userLogin, type: actions.ADD_COMMENT, comment });
+const addSourceCmd = (userLogin, source) => ({ userLogin, type: actions.ADD_SOURCE, source });
+const deleteSourceCmd = (userLogin, source) => ({ type: actions.DELETE_SOURCE, source });
+// todo
+const addSourceRequestCmd = (userLogin, source) => ({ userLogin, type: actions.ADD_SOURCE_REQUEST, source });
+const addSourceSuccessCmd = (userLogin, source) => ({ userLogin, type: actions.ADD_SOURCE_SUCCESS, source });
 
-/** Load Model after Redux */
-const stubData = (store) => {
+/** Load Some Starter (after Redux) */
+const basicData = ({wordSources, sourceWords, sourceWordComments}, store) => {
   /** airbnb says no-iterators...
    *  Why? This enforces our immutable rule. Dealing with pure functions that return values is easier to reason about than side effects.
-   *  Use `map()` / `every()` / `filter()` / `find()` / `findIndex()` / `reduce()` / `some()` / ... to iterate over arrays, and `Object.keys()` / `Object.values()` / `Object.entries()` to produce arrays so you can iterate over objects.
-   * buuuut...
-   *  side-effects?? (for instead of map seems more expressive of mutability) */
-  empiricalData().wordSources.forEach( (source) => store.dispatch(addSourceCmd(source)) )
-  empiricalData().sourceWords.forEach( (word) => store.dispatch(addWordCmd(word)) )
-  empiricalData().sourceWordComments.forEach( (comment) => store.dispatch(addCommentCmd(comment)) )
+   *  Use `map()` / `every()` / `filter()` / `find()` / `findIndex()` / `reduce()` / `some()` / ... to iterate over arrays, and `Object.keys()` / `Object.values()` / `Object.entries()`
+   *  to produce arrays so you can iterate over objects.
+   * buuuut... side-effects?? (for instead of map seems more expressive of mutability)
+   */
+  wordSources.forEach( (source) => store.dispatch(addSourceCmd("default", source)) )
+  sourceWords.forEach( (word) => store.dispatch(addWordCmd("default", word)) )
+  sourceWordComments.forEach( (comment) => store.dispatch(addCommentCmd("default", comment)) )
 }
+
+const debug = true
+const logD = (msgs) => msgs.forEach((msg) => { if (debug) console.log(msg) })
+
+/** Re-Load Existing (after Redux) */
+const readData = ({sourcesDB, wordsDB, commentsDB}, store, callback) => {
+  // wordSources
+  if (sourcesDB)
+    sourcesDB.allDocs({include_docs:true},
+      (err, doc) => {
+        doc.rows.forEach( (sourceRow) => {
+          logD(["readData",sourceRow,sourceRow.value]); // value :: rev
+          store.dispatch(addSourceCmd("default", sourceRow.doc))
+        })
+        callback() // is the timing right now for render??
+      })
+  if (wordsDB)
+    wordsDB.allDocs({include_docs:true},
+      (err, doc) => doc.rows.forEach( (wordRow) => store.dispatch(addWordCmd("default", wordRow.doc)) ))
+  if (commentsDB)
+    commentsDB.addDocs({include_docs:true},
+      (err, doc) => doc.rows.forEach( (comment) => store.dispatch(addCommentCmd("default", commentRow.doc)) ))
+}
+
+//
+const cleanData = ({sourcesDB,wordsDB,commentsDB}, callback) => {
+  if (sourcesDB)
+    sourcesDB.allDocs({include_docs:true},
+      (err, doc) => {
+        doc.rows.forEach( (sourceRow) => {
+          logD(["cleanData",sourceRow,sourceRow.doc]); // value :: rev
+          if ( !sourceRow.doc.title ||
+              sourceRow.doc.title == "") {
+            logD(["cleanData!",sourceRow,sourceRow.doc]); // value :: rev
+            store.dispatch(deleteSourceCmd("default", sourceRow.doc))
+          }
+        })
+      })
+  callback() // is the timing right now for render??
+}
+
 
 /** Views */
 
@@ -151,7 +218,7 @@ const CommentList = function (props, context) {
   );};
 
 /** Main Components */
-const WordCommentatorBox = createClass({
+const WordCommentatorApp = createClass({
     contextTypes: { store: PropTypes.object }, // STATE type 1 & maybe 2
     /** getChildContext() { return { source: { } } },
      childContextTypes: { // type 3 // source: PropTypes.object },
@@ -162,10 +229,11 @@ const WordCommentatorBox = createClass({
     // GLOBAL state
     componentWillUnmount() { this.unsubscribe(); },
     getInitialState: function() {
+      const userLogin = "guest"
       const { sources, sourceWords } = this.context.store.getState()
       const source = sources[0]
       const word = sourceWords.filter((word) => word.sourceId == source.id)[0]
-      return { word: word, source: source, commentor: "" }
+      return { word: word, source: source, commentor: "", userLogin: userLogin }
     },
     // Control state
     onSourceSave: function(newSource) {
@@ -198,13 +266,13 @@ const WordCommentatorBox = createClass({
     render() {
         const { dispatch, getState } = this.context.store
         const { sources, sourceWords, sourceWordComments, /* author, text */  } = getState();
-        /*
-         * author is last posted comment author
+        /* author is last posted comment author
          * commentor is the author list is filtered on
          * equal after a "post"
          */
         const { source, word, commentor,
-          newWord, newSource, newComment, author } = this.state; // Control state, local (type 3)
+          newWord, newSource, newComment,
+          author, userLogin } = this.state; // Control state, local (type 3)
 
         switch (this.props.location[0])  {
           case 'words':
@@ -214,7 +282,7 @@ const WordCommentatorBox = createClass({
                 <SourceWordForm
                   word={ word ? word : {sourceId: source.id} }
                   onWordSubmit= { (newWord) => {
-                    dispatch(addWordCmd(newWord))
+                    dispatch(addWordCmd(userLogin, newWord))
                     this.onWordSave(newWord)
                   }}
                 />
@@ -226,7 +294,7 @@ const WordCommentatorBox = createClass({
                 <SourceForm
                   source={ source }
                   onSourceSubmit= { (newSource) => {
-                    dispatch(addSourceCmd(newSource))
+                    dispatch(addSourceCmd(userLogin, newSource))
                     this.onSourceSave(newSource)
                   }}
                 />
@@ -252,7 +320,7 @@ const WordCommentatorBox = createClass({
                 <CommentForm
                     author={ author }
                     onCommentSubmit= { (newComment) => {
-                      dispatch(addCommentCmd(newComment))
+                      dispatch(addCommentCmd(userLogin, newComment))
                       // TODO Make CommentList manage this...
                       this.onCommentorChange(newComment.author)
                     }} />
@@ -287,37 +355,54 @@ function postSource({ getState, dispatch }) {
   }
 }
 
+// ? unused
 function logger({ getState }) {
   return (next) => (action) => {
     console.log('will dispatch', action)
-
     // Call the next dispatch method in the middleware chain.
     let returnValue = next(action)
-
     console.log('state after dispatch', getState())
-
-    // This will likely be the action itself, unless
-    // a middleware further in chain changed it.
     return returnValue
   }
 }
 
 /** Interface to Store */
-const commentsReducer = (state={
-    sources:[],
-    sourceLastStatus:200, // if 0 means pending request
-    sourceWords:[],
-    sourceWordComments:[]
-    // items:[],    author:'',    text: ''
-}, action) => {
+function commentsReducer(state={
+    sources:[], sourceLastStatus:200, // if 0 means pending request
+    sourceWords:[], sourceWordComments:[] // items:[],    author:'',    text: ''
+  }, action) {
+    let sourceEntity = action.source
+    let newState = state
     switch (action.type) {
         case actions.ADD_SOURCE_REQUEST:
         return { ...state, sourceLastStatus: 0};
 
-        case actions.ADD_SOURCE: // _SUCCESS:
-        return { ...state,
-          sourceLastStatus: 201,
-            sources: [...state.sources, {id: Math.random(), ...action.source}] };
+        case actions.ADD_SOURCE: // TODO .. _SUCCESS:
+        // TODO earlier?
+        if (action.source._id) {
+          newState = { ...state, sourceLastStatus: 201,
+              sources: [...state.sources, sourceEntity] }
+        } else {
+          // custom put with success callback
+          sourceEntity = put(sourcesDB, action.userLogin, action.type, action.source,
+            (entity, err) => {
+              if (err) {
+                logD("may exist: " + err)
+              } else {
+                store.dispatch(addSourceCmd("USER_ME", entity)) // with _id this time
+              }
+            })
+        }
+        return newState;
+
+        case actions.DELETE_SOURCE: // TODO .. _SUCCESS:
+        // TODO earlier?
+        if (action.source._id) {
+          console.log("delete persistent")
+          newState = { ...state, sourceLastStatus: 201,
+              sources: state.sources.filter((source) => (source._id != sourceEntity._id)) }
+        }
+        return newState;
 
         case actions.ADD_WORD:
         return { ...state,
@@ -331,20 +416,31 @@ const commentsReducer = (state={
     }
 };
 
-// Split location into `/` separated parts, then render `Application` with it
-function handleNewHash() {
-  var location = window.location.hash.replace(/^#\/?|\/$/g, '').split('/');
-  // React-Redux application
-  ReactDOM.render(
-      <Provider store={ store }>
-          <WordCommentatorBox location={ location } />
-      </Provider>, // document.getElementById('content')
-        document.querySelector('#content'))
-}
-
 // Redux store
 const store = createStore(commentsReducer);
-stubData(store)
-// Handle the initial route and browser navigation events
-handleNewHash()
-window.addEventListener('hashchange', handleNewHash, false);
+basicData(empiricalData(), store)
+readData({sourcesDB}, store, () => {
+  // Handle the initial route and browser navigation events
+  // Split location into `/` separated parts, then render `Application` with it
+  const handleNewHash = () => {
+    var location = window.location.hash.replace(/^#\/?|\/$/g, '').split('/');
+    // React-Redux application
+    ReactDOM.render(
+        <Provider store={ store }>
+            <WordCommentatorApp location={ location } />
+        </Provider>, // document.getElementById('content')
+          document.querySelector('#content'))
+  }
+  handleNewHash()
+  window.addEventListener('hashchange', handleNewHash, false);
+})
+
+
+if (true)
+  cleanData({sourcesDB}, () =>
+    sourcesDB.allDocs({include_docs:true},
+      (err, doc) => {
+        doc.rows.forEach( (sourceRow) => {
+          logD(["cleanedData",sourceRow.doc]); // value :: rev
+        })
+      }))
