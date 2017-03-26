@@ -266,7 +266,8 @@ const WordCommentatorApp = createClass({
     render() {
         const { dispatch, getState } = this.context.store
         const { sources, sourceWords, sourceWordComments, /* author, text */  } = getState();
-        /* author is last posted comment author
+        /*
+         * author is last posted comment author
          * commentor is the author list is filtered on
          * equal after a "post"
          */
@@ -359,9 +360,14 @@ function postSource({ getState, dispatch }) {
 function logger({ getState }) {
   return (next) => (action) => {
     console.log('will dispatch', action)
+
     // Call the next dispatch method in the middleware chain.
     let returnValue = next(action)
+
     console.log('state after dispatch', getState())
+
+    // This will likely be the action itself, unless
+    // a middleware further in chain changed it.
     return returnValue
   }
 }
@@ -380,14 +386,16 @@ function commentsReducer(state={
         case actions.ADD_SOURCE: // TODO .. _SUCCESS:
         // TODO earlier?
         if (action.source._id) {
-          newState = { ...state, sourceLastStatus: 201,
+          logD(["existing persistent"])
+          newState = { ...state,
+            sourceLastStatus: 201,
               sources: [...state.sources, sourceEntity] }
         } else {
           // custom put with success callback
           sourceEntity = put(sourcesDB, action.userLogin, action.type, action.source,
             (entity, err) => {
               if (err) {
-                logD("may exist: " + err)
+                logD("may already exist: " + err)
               } else {
                 store.dispatch(addSourceCmd("USER_ME", entity)) // with _id this time
               }
@@ -399,7 +407,8 @@ function commentsReducer(state={
         // TODO earlier?
         if (action.source._id) {
           console.log("delete persistent")
-          newState = { ...state, sourceLastStatus: 201,
+          newState = { ...state,
+            sourceLastStatus: 201,
               sources: state.sources.filter((source) => (source._id != sourceEntity._id)) }
         }
         return newState;
